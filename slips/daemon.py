@@ -16,7 +16,7 @@ from slips_files.core.database.database_manager import DBManager
 
 class Daemon:
     description = "This module runs when slips is in daemonized mode"
-    name = "Daemon"
+    name = "daemon"
 
     def __init__(self, slips):
         # to use read_configurations defined in Main
@@ -49,6 +49,8 @@ class Daemon:
 
     def create_std_streams(self):
         """Create standard steam files and dirs and clear them"""
+        if self.args.is_slips_started_by_an_update:
+            return
 
         std_streams = [self.stderr, self.stdout, self.logsfile]
         for file in std_streams:
@@ -73,7 +75,7 @@ class Daemon:
 
     def read_configuration(self):
         conf = ConfigParser()
-        self.logsfile = conf.logsfile()
+        self.logsfile = conf.logs_file()
         self.stdout = conf.stdout()
         self.stderr = conf.stderr()
         # we don't use it anyway
