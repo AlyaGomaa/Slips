@@ -319,9 +319,6 @@ class UpdateManager:
         """
         if self._did_1d_pass_since_last_update():
             should_update: bool = self.should_update_slips()
-            # @@@@@@@@@@@@@@@@@@@@@@
-            should_update = True
-
             if should_update:
                 self.print(
                     "A new version of Slips is available. "
