@@ -1,3 +1,9 @@
+1.1.20 (Mar 31st, 2026)
+
+* something
+* something more
+* something else
+
 1.1.19 (Mar 31st, 2026)
 
 * Add SSH bruteforce detection based on Zeek SSH, software, and notice logs.
