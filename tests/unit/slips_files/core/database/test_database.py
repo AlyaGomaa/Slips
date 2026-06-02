@@ -201,7 +201,7 @@ def test_redis_db_is_tor_node():
 
 
 def test_store_official_dns_server():
-    """Test storing configured DNS servers in Redis."""
+    """Test storing detected DNS servers in Redis."""
     db = ModuleFactory().create_db_manager_obj(6379, flush_db=True)
 
     db.store_official_dns_server("192.168.1.53")
