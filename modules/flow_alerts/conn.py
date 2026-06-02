@@ -805,6 +805,11 @@ class Conn(IFlowalertsAnalyzer):
         if not self.should_check_diff_localnet(flow):
             return
 
+        if self.should_ignore_different_localnet_for_official_dns_server(
+            flow, what_to_check
+        ):
+            return
+
         ip_to_check = flow.saddr if what_to_check == "srcip" else flow.daddr
         if self._is_ok_to_connect_to_ip_outside_localnet(ip_to_check):
             return
