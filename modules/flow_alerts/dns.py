@@ -693,6 +693,11 @@ class DNS(IFlowalertsAnalyzer):
             # the non dns flows are checked in conn.py
             return
 
+        if self.should_ignore_different_localnet_for_official_dns_server(
+            flow, what_to_check
+        ):
+            return
+
         if self._is_ok_to_connect_to_ip_outside_localnet(flow):
             return
 
