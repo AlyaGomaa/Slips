@@ -44,7 +44,7 @@ class IFlowalertsAnalyzer(ABC):
         what_to_check: IP direction being evaluated, either srcip or dstip.
 
         Return:
-        bool: True when the checked IP is a configured DNS server using
+        bool: True when the checked IP is a detected DNS server using
         port 53.
         """
         if what_to_check == "dstip":
@@ -60,6 +60,38 @@ class IFlowalertsAnalyzer(ABC):
             return False
 
         return self.db.is_official_dns_server(dns_server_ip)
+
+    def should_ignore_conn_to_private_ip_for_official_dns_server(
+        self, flow
+    ) -> bool:
+        """
+        Check whether private-IP connection evidence should be skipped.
+
+        Parameters:
+        flow: Flow-like object being analyzed.
+
+        Return:
+        bool: True when the flow is a DNS query to port 53, a DNS reply
+        from a detected DNS server, or DHCPv6 service traffic.
+        """
+        if getattr(flow, "proto", "").lower() != "udp":
+            return False
+
+        daddr = getattr(flow, "daddr", "")
+        saddr = getattr(flow, "saddr", "")
+        dport = str(getattr(flow, "dport", ""))
+        sport = str(getattr(flow, "sport", ""))
+
+        if dport == "53" and daddr:
+            return True
+
+        if sport == "53" and saddr and self.db.is_official_dns_server(saddr):
+            return True
+
+        if {sport, dport}.intersection({"546", "547"}):
+            return True
+
+        return False
 
     @abstractmethod
     def init(self):
