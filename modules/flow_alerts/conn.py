@@ -841,15 +841,8 @@ class Conn(IFlowalertsAnalyzer):
     def check_connection_to_local_ip(self, twid, flow):
         """
         Alerts when there's a connection from a private IP to
-        another private IP except for DNS connections to the gateway
+        another private IP except for expected DNS and DHCP service traffic.
         """
-
-        def is_dns_conn(flow):
-            return (
-                flow.dport == 53
-                and flow.proto.lower() == "udp"
-                and flow.daddr == self.db.get_gateway_ip(flow.interface)
-            )
 
         def is_dhcp_conn(flow):
             # Bootstrap protocol server. Used by DHCP servers to communicate
@@ -862,9 +855,16 @@ class Conn(IFlowalertsAnalyzer):
 
         with contextlib.suppress(ValueError):
             flow.dport = int(flow.dport)
+        with contextlib.suppress(ValueError):
+            flow.sport = int(flow.sport)
 
-        if is_dns_conn(flow) or is_dhcp_conn(flow):
-            # skip DNS conns to the gw to avoid having tons of this evidence
+        if is_dhcp_conn(flow):
+            # skip DHCP conns to avoid having tons of this evidence
+            return
+
+        if self.should_ignore_conn_to_private_ip_for_official_dns_server(flow):
+            # skip DNS and DHCPv6 service traffic that matches the
+            # detected local resolver behavior
             return
 
         # make sure the 2 ips are private
