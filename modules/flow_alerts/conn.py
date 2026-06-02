@@ -744,12 +744,11 @@ class Conn(IFlowalertsAnalyzer):
         """
         ip_obj = ipaddress.ip_address(ip)
         return (
-            # because slips only knows about the ipv4 local networks
-            not validators.ipv4(ip)
-            or ip in SPECIAL_IPV4
+            (ip_obj.version == 4 and ip in SPECIAL_IPV4)
             or not ip_obj.is_private
             or ip_obj.is_loopback
             or ip_obj.is_multicast
+            or ip_obj.is_link_local
         )
 
     def _is_dns(self, flow) -> bool:
@@ -765,18 +764,23 @@ class Conn(IFlowalertsAnalyzer):
             # dns flows are checked fot this same detection in dns.py
             return False
 
-        for ip in (flow.saddr, flow.daddr):
-            ip_obj = ipaddress.ip_address(ip)
-            if (
-                not validators.ipv4(ip)
-                or ip in SPECIAL_IPV4
-                or ip_obj.is_loopback
-                or ip_obj.is_multicast
-            ):
-                return False
-
         saddr_obj = ipaddress.ip_address(flow.saddr)
         daddr_obj = ipaddress.ip_address(flow.daddr)
+
+        if saddr_obj.version != daddr_obj.version:
+            return False
+
+        for ip, ip_obj in (
+            (flow.saddr, saddr_obj),
+            (flow.daddr, daddr_obj),
+        ):
+            if (
+                (ip_obj.version == 4 and ip in SPECIAL_IPV4)
+                or ip_obj.is_loopback
+                or ip_obj.is_multicast
+                or ip_obj.is_link_local
+            ):
+                return False
 
         is_saddr_private = utils.is_private_ip(saddr_obj)
         is_daddr_private = utils.is_private_ip(daddr_obj)
@@ -813,8 +817,14 @@ class Conn(IFlowalertsAnalyzer):
             # any msg is published in the new_flow channel
             return
 
-        # if it's a private ipv4 addr, it should belong to our local network
-        if ip_obj in ipaddress.IPv4Network(own_local_network):
+        own_local_network_obj = ipaddress.ip_network(
+            own_local_network, strict=False
+        )
+        if own_local_network_obj.version != ip_obj.version:
+            return
+
+        # if it's a private address, it should belong to our local network
+        if ip_obj in own_local_network_obj:
             return
 
         self.set_evidence.different_localnet_usage(

@@ -1178,6 +1178,22 @@ def test_is_well_known_org(
             "srcip",
             0,
         ),
+        (  # Test case 5: Different IPv6 local network usage (dstip)
+            "fd00:1::10",
+            "fd00:2::20",
+            80,
+            "tcp",
+            "dstip",
+            1,
+        ),
+        (  # Test case 6: Same IPv6 local network usage, no evidence
+            "fd00:1::10",
+            "fd00:1::20",
+            80,
+            "tcp",
+            "dstip",
+            0,
+        ),
     ],
 )
 def test_check_different_localnet_usage(
@@ -1189,7 +1205,11 @@ def test_check_different_localnet_usage(
     """
     conn = ModuleFactory().create_conn_analyzer_obj()
     conn.set_evidence.different_localnet_usage = Mock()
-    conn.db.get_local_network.return_value = "192.168.1.0/24"
+    conn.db.get_local_network.return_value = (
+        "fd00:1::/64"
+        if ":" in saddr or ":" in daddr
+        else "192.168.1.0/24"
+    )
     flow = Conn(
         starttime="1726249372.312124",
         uid="123",

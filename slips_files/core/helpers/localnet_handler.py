@@ -1,7 +1,6 @@
 import ipaddress
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
 from typing import Dict, List, Union
-import validators
 
 import netifaces
 
@@ -61,18 +60,23 @@ class LocalnetHandler:
         """
         local_nets = {}
         for interface in utils.get_all_interfaces(self.profiler.args):
-            addrs = netifaces.ifaddresses(interface).get(netifaces.AF_INET)
-            if not addrs:
-                return local_nets
+            iface_addrs = netifaces.ifaddresses(interface)
 
-            for addr in addrs:
-                ip = addr.get("addr")
-                netmask = addr.get("netmask")
-                if ip and netmask:
-                    network = ipaddress.IPv4Network(
-                        f"{ip}/{netmask}", strict=False
-                    )
-                    local_nets[interface] = str(network)
+            for family in (netifaces.AF_INET, netifaces.AF_INET6):
+                addrs = iface_addrs.get(family, [])
+                for addr in addrs:
+                    ip = (addr.get("addr") or "").split("%", 1)[0]
+                    netmask = addr.get("netmask") or addr.get("prefixlen")
+                    if isinstance(netmask, str) and "/" in netmask:
+                        netmask = netmask.rsplit("/", 1)[-1]
+                    if ip and netmask:
+                        network = ipaddress.ip_network(
+                            f"{ip}/{netmask}", strict=False
+                        )
+                        local_nets[interface] = str(network)
+                        break
+                if interface in local_nets:
+                    break
         return local_nets
 
     def _get_local_net_of_flow(self, flow) -> Dict[str, str]:
@@ -121,7 +125,7 @@ class LocalnetHandler:
 
     def _should_set_localnet(self, flow) -> bool:
         """
-        returns true only if the saddr of the current flow is ipv4, private
+        returns true only if the saddr of the current flow is private
         and we don't have the local_net set already
         """
         if self.done_recognizing_all_localnets:
@@ -150,10 +154,10 @@ class LocalnetHandler:
         if self._private_client_ips:
             return True
 
-        if not validators.ipv4(flow.saddr):
+        try:
+            saddr_obj = ipaddress.ip_address(flow.saddr)
+        except ValueError:
             return False
-
-        saddr_obj = ipaddress.ip_address(flow.saddr)
 
         if (
             saddr_obj.is_multicast

@@ -178,6 +178,52 @@ def test_extract_ips_from_dns_answers():
     assert extracted_ips == ["192.168.1.1", "2001:db8::1"]
 
 
+def test_is_ok_to_connect_to_ip_outside_localnet_handles_private_ipv6():
+    dns = ModuleFactory().create_dns_analyzer_obj()
+    flow = DNS(
+        starttime="1726568479.5997488",
+        uid="1234",
+        saddr="fd00:1::10",
+        daddr="fd00:2::53",
+        dport="53",
+        sport="53000",
+        proto="udp",
+        query="example.com",
+        qclass_name="",
+        qtype_name="AAAA",
+        rcode_name="NOERROR",
+        answers=[],
+        TTLs="",
+    )
+
+    assert dns._is_ok_to_connect_to_ip_outside_localnet(flow) is True
+
+
+def test_dns_misconfiguration_detection_tracks_private_ipv6_dns_server():
+    dns = ModuleFactory().create_dns_analyzer_obj()
+    flow = DNS(
+        starttime="1726568479.5997488",
+        uid="1234",
+        saddr="fd00:1::10",
+        daddr="fd00:2::53",
+        dport="53",
+        sport="53000",
+        proto="udp",
+        query="example.com",
+        qclass_name="",
+        qtype_name="AAAA",
+        rcode_name="NOERROR",
+        answers=["2001:db8::1"],
+        TTLs="",
+    )
+
+    for _ in range(5):
+        assert dns.is_possible_dns_misconfiguration(flow.daddr, flow) is True
+
+    assert dns.is_dns_detected is True
+    assert dns.detected_dns_ip == "fd00:2::53"
+
+
 @pytest.mark.parametrize(
     "contacted_ips, other_ip, expected_result",
     [  # Testcase1: Connection exists from other IP version

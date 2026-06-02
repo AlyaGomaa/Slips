@@ -645,21 +645,27 @@ class DNS(IFlowalertsAnalyzer):
         returns true if it's ok to connect to the given IP even if it's
         "outside the given local network"
         """
-        for ip in (flow.saddr, flow.daddr):
-            ip_obj = ipaddress.ip_address(ip)
+        saddr_obj = ipaddress.ip_address(flow.saddr)
+        daddr_obj = ipaddress.ip_address(flow.daddr)
+
+        if saddr_obj.version != daddr_obj.version:
+            return False
+
+        for ip, ip_obj in (
+            (flow.saddr, saddr_obj),
+            (flow.daddr, daddr_obj),
+        ):
             if (
                 # if the ip is the dns server that slips detected,
                 # it's ok to connect to it
                 ip == self.detected_dns_ip
-                or not validators.ipv4(ip)
-                or ip in SPECIAL_IPV4
+                or (ip_obj.version == 4 and ip in SPECIAL_IPV4)
                 or ip_obj.is_loopback
                 or ip_obj.is_multicast
+                or ip_obj.is_link_local
             ):
                 return False
 
-        saddr_obj = ipaddress.ip_address(flow.saddr)
-        daddr_obj = ipaddress.ip_address(flow.daddr)
         is_saddr_private = utils.is_private_ip(saddr_obj)
         is_daddr_private = utils.is_private_ip(daddr_obj)
 
@@ -708,8 +714,14 @@ class DNS(IFlowalertsAnalyzer):
             # any msg is published in the new_flow channel
             return
 
-        # if it's a private ipv4 addr, it should belong to our local network
-        if ip_obj in ipaddress.IPv4Network(own_local_network):
+        own_local_network_obj = ipaddress.ip_network(
+            own_local_network, strict=False
+        )
+        if own_local_network_obj.version != ip_obj.version:
+            return
+
+        # if it's a private address, it should belong to our local network
+        if ip_obj in own_local_network_obj:
             return
 
         self.set_evidence.different_localnet_usage(
