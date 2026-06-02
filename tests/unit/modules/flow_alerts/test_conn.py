@@ -1239,6 +1239,49 @@ def test_check_different_localnet_usage(
 
 
 @pytest.mark.parametrize(
+    "what_to_check, sport, dport",
+    [
+        ("dstip", "40000", "53"),
+        ("srcip", "53", "40000"),
+    ],
+)
+def test_check_different_localnet_usage_ignores_official_dns_server(
+    what_to_check, sport, dport
+):
+    conn = ModuleFactory().create_conn_analyzer_obj()
+    conn.set_evidence.different_localnet_usage = Mock()
+    conn.db.get_local_network.return_value = "fd00:1::/64"
+    conn.db.is_official_dns_server.return_value = True
+    flow = Conn(
+        starttime="1726249372.312124",
+        uid="123",
+        saddr="fd00:2::53",
+        daddr="fd00:3::53",
+        dur=1,
+        proto="tcp",
+        appproto="",
+        sport=sport,
+        dport=dport,
+        spkts=0,
+        dpkts=0,
+        sbytes=0,
+        dbytes=0,
+        smac="",
+        dmac="",
+        state="Established",
+        history="",
+    )
+
+    conn.check_different_localnet_usage(
+        twid,
+        flow,
+        what_to_check=what_to_check,
+    )
+
+    conn.set_evidence.different_localnet_usage.assert_not_called()
+
+
+@pytest.mark.parametrize(
     "daddr, dport, proto, saddr, expected_calls",
     [
         (  # Test case 1: Both IPs are private,
