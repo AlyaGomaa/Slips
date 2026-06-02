@@ -178,7 +178,7 @@ def test_extract_ips_from_dns_answers():
     assert extracted_ips == ["192.168.1.1", "2001:db8::1"]
 
 
-def test_is_ok_to_connect_to_ip_outside_localnet_handles_private_ipv6():
+def test_is_ok_to_connect_to_ip_outside_localnet_requires_detected_private_ipv6_dns_server():
     dns = ModuleFactory().create_dns_analyzer_obj()
     flow = DNS(
         starttime="1726568479.5997488",
@@ -196,11 +196,14 @@ def test_is_ok_to_connect_to_ip_outside_localnet_handles_private_ipv6():
         TTLs="",
     )
 
-    assert dns._is_ok_to_connect_to_ip_outside_localnet(flow) is True
+    dns.db.is_official_dns_server.return_value = True
+
+    assert dns._is_ok_to_connect_to_ip_outside_localnet(flow) is False
 
 
 def test_dns_misconfiguration_detection_tracks_private_ipv6_dns_server():
     dns = ModuleFactory().create_dns_analyzer_obj()
+    dns.db.is_official_dns_server.return_value = False
     flow = DNS(
         starttime="1726568479.5997488",
         uid="1234",
@@ -217,11 +220,13 @@ def test_dns_misconfiguration_detection_tracks_private_ipv6_dns_server():
         TTLs="",
     )
 
-    for _ in range(5):
-        assert dns.is_possible_dns_misconfiguration(flow.daddr, flow) is True
+    assert dns.is_possible_dns_misconfiguration(flow.daddr, flow) is True
 
-    assert dns.is_dns_detected is True
     assert dns.detected_dns_ip == "fd00:2::53"
+    dns.db.store_official_dns_server.assert_called_once_with("fd00:2::53")
+    dns.flowalerts.print.assert_called_with(
+        "Detected DNS server by traffic heuristic: fd00:2::53"
+    )
 
 
 @pytest.mark.parametrize(
@@ -257,6 +262,30 @@ def test_check_different_localnet_usage_ignores_official_dns_server(
     dns.check_different_localnet_usage(twid, flow, what_to_check=what_to_check)
 
     assert dns.set_evidence.different_localnet_usage.call_count == expected_calls
+
+
+def test_register_private_dns_server_ignores_public_dns_server():
+    dns = ModuleFactory().create_dns_analyzer_obj()
+    dns.db.is_official_dns_server.return_value = False
+    flow = DNS(
+        starttime="1726568479.5997488",
+        uid="1234",
+        saddr="fd00:1::10",
+        daddr="8.8.8.8",
+        dport="53",
+        sport="53000",
+        proto="udp",
+        query="example.com",
+        qclass_name="",
+        qtype_name="A",
+        rcode_name="NOERROR",
+        answers=["8.8.4.4"],
+        TTLs="",
+    )
+
+    assert dns.register_private_dns_server(flow) is False
+    dns.db.store_official_dns_server.assert_not_called()
+    dns.flowalerts.print.assert_not_called()
 
 
 @pytest.mark.parametrize(
