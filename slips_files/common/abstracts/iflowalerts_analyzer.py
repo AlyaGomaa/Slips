@@ -33,6 +33,34 @@ class IFlowalertsAnalyzer(ABC):
     def read_configuration(self):
         """Reads configuration"""
 
+    def should_ignore_different_localnet_for_official_dns_server(
+        self, flow, what_to_check: str
+    ) -> bool:
+        """
+        Check whether different-localnet evidence should be skipped.
+
+        Parameters:
+        flow: Flow-like object being analyzed.
+        what_to_check: IP direction being evaluated, either srcip or dstip.
+
+        Return:
+        bool: True when the checked IP is a configured DNS server using
+        port 53.
+        """
+        if what_to_check == "dstip":
+            dns_server_ip = getattr(flow, "daddr", "")
+            dns_server_port = getattr(flow, "dport", "")
+        elif what_to_check == "srcip":
+            dns_server_ip = getattr(flow, "saddr", "")
+            dns_server_port = getattr(flow, "sport", "")
+        else:
+            return False
+
+        if str(dns_server_port) != "53" or not dns_server_ip:
+            return False
+
+        return self.db.is_official_dns_server(dns_server_ip)
+
     @abstractmethod
     def init(self):
         """
