@@ -384,6 +384,10 @@ communicating on port 53/UDP. Slips marks that destination address as the DNS se
 53/udp while having DNS answers. The same heuristic applies to private IPv4 and IPv6 DNS servers. this is likely a
 DNS misconfiguration hence a FP.
 
+Slips also ignores this evidence when the checked IP is one of the DNS resolver addresses configured on the host and
+the matching DNS server port is 53. This applies to both IPv4 and IPv6 resolver addresses and covers requests sent to
+the resolver and replies coming back from it.
+
 ## High entropy DNS TXT answers
 
 Slips check every DNS answer with TXT record for high entropy
