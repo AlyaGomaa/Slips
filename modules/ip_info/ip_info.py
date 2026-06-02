@@ -14,7 +14,6 @@ import whois
 import socket
 import requests
 import json
-import dns.resolver
 from contextlib import redirect_stdout, redirect_stderr
 import subprocess
 import netifaces
@@ -483,34 +482,6 @@ class IPInfo(IAsyncModule):
         default = gws.get("default", {})
         return default.get(netifaces.AF_INET, (None,))[0]
 
-    @staticmethod
-    def get_configured_dns_server_ips() -> List[str]:
-        """
-        Get the configured DNS resolver IPs from the local system.
-
-        Parameters:
-        None.
-
-        Return:
-        list[str]: Valid IPv4 and IPv6 resolver addresses.
-        """
-        try:
-            resolver = dns.resolver.Resolver()
-        except dns.resolver.NoResolverConfiguration:
-            return []
-
-        dns_servers = []
-        for nameserver in resolver.nameservers:
-            nameserver = str(nameserver)
-            try:
-                ipaddress.ip_address(nameserver)
-            except ValueError:
-                continue
-
-            dns_servers.append(nameserver)
-
-        return dns_servers
-
     def get_gateway_ip_if_interface(self) -> Dict[str, str] | None:
         """
         returns the gateway ip of the given interface if running on an
@@ -816,9 +787,6 @@ class IPInfo(IAsyncModule):
             if gw_macs := self.get_gateway_mac(gw_ips):
                 for interface, gw_mac in gw_macs.items():
                     self.db.set_default_gateway("MAC", gw_mac, interface)
-
-        for dns_server in self.get_configured_dns_server_ips():
-            self.db.store_official_dns_server(dns_server)
 
     def handle_new_ip(self, ip: str):
         try:
