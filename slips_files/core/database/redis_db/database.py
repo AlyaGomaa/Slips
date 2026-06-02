@@ -1795,7 +1795,7 @@ class RedisDB(
 
     def is_official_dns_server(self, ip: str) -> bool:
         """
-        Check whether the given IP is one of the configured DNS servers.
+        Check whether the given IP is one of the detected DNS servers.
 
         Parameters:
         ip: IP address to check.
@@ -1814,7 +1814,7 @@ class RedisDB(
 
     def store_official_dns_server(self, server_addr: str):
         """
-        Store a configured DNS server IP in the database.
+        Store a detected DNS server IP in the database.
 
         Parameters:
         server_addr: DNS server IPv4 or IPv6 address.
