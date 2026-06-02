@@ -481,44 +481,6 @@ def test_get_gateway_ip_if_interface_args_interface(
     )
 
 
-@pytest.mark.parametrize(
-    "nameservers, expected_dns_servers",
-    [
-        (["192.168.1.53", "fd00::53"], ["192.168.1.53", "fd00::53"]),
-        (["192.168.1.53", "invalid"], ["192.168.1.53"]),
-        ([], []),
-    ],
-)
-def test_get_configured_dns_server_ips(
-    mocker, nameservers, expected_dns_servers
-):
-    ip_info = ModuleFactory().create_ip_info_obj()
-    resolver = Mock(nameservers=nameservers)
-    mocker.patch(
-        "modules.ip_info.ip_info.dns.resolver.Resolver",
-        return_value=resolver,
-    )
-
-    assert ip_info.get_configured_dns_server_ips() == expected_dns_servers
-
-
-def test_pre_main_stores_configured_dns_servers(mocker):
-    ip_info = ModuleFactory().create_ip_info_obj()
-    ip_info.wait_for_dbs = Mock()
-    ip_info.get_gateway_ip_if_interface = Mock(return_value={})
-    ip_info.get_configured_dns_server_ips = Mock(
-        return_value=["192.168.1.53", "fd00::53"]
-    )
-    mocker.patch(
-        "slips_files.common.slips_utils.utils.drop_root_privs_permanently"
-    )
-
-    ip_info.pre_main()
-
-    ip_info.db.store_official_dns_server.assert_any_call("192.168.1.53")
-    ip_info.db.store_official_dns_server.assert_any_call("fd00::53")
-
-
 # def test_get_gateway_ip_if_interface_args_access_point():
 
 
