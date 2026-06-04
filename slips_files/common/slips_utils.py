@@ -128,6 +128,9 @@ class Utils(object):
                 if first_octet in network_range:
                     return network_range
         elif validators.ipv6(ip):
+            ip_obj = ipaddress.ip_address(ip)
+            if ip_obj in ipaddress.ip_network("fc00::/7"):
+                return str(ipaddress.ip_network(f"{ip}/64", strict=False))
             if not self.are_detection_modules_interested_in_this_ip(ip):
                 return str(ipaddress.ip_network(f"{ip}/64", strict=False))
 

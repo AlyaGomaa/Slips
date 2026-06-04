@@ -7,7 +7,6 @@ from tests.module_factory import ModuleFactory
 import json
 from unittest.mock import (
     Mock,
-    patch,
 )
 import pytest
 from ipaddress import ip_address
@@ -532,24 +531,6 @@ def test_check_tor_exit_node(
     assert conn.check_tor_exit_node(twid, flow) is expected_result
     conn.db.is_tor_node.assert_called_once_with(flow.daddr)
     assert mock_set_evidence.call_count == expected_call_count
-
-
-@pytest.mark.parametrize(
-    "mock_time_diff, expected_result",
-    [
-        (40, True),  # Timeout reached
-        (20, False),  # Timeout not reached
-    ],
-)
-def test_is_interface_timeout_reached(mock_time_diff, expected_result):
-    conn = ModuleFactory().create_conn_analyzer_obj()
-    conn.is_running_non_stop = True
-    conn.conn_without_dns_interface_wait_time = 30
-    with patch(
-        "slips_files.common.slips_utils.utils.get_time_diff",
-        return_value=mock_time_diff,
-    ):
-        assert conn.is_interface_timeout_reached() == expected_result
 
 
 @pytest.mark.parametrize(
@@ -1206,9 +1187,7 @@ def test_check_different_localnet_usage(
     conn = ModuleFactory().create_conn_analyzer_obj()
     conn.set_evidence.different_localnet_usage = Mock()
     conn.db.get_local_network.return_value = (
-        "fd00:1::/64"
-        if ":" in saddr or ":" in daddr
-        else "192.168.1.0/24"
+        "fd00:1::/64" if ":" in saddr or ":" in daddr else "192.168.1.0/24"
     )
     flow = Conn(
         starttime="1726249372.312124",

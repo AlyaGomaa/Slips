@@ -27,6 +27,7 @@ from functools import lru_cache, partial
 
 from modules.ip_info.jarm import JARM
 from slips_files.common.flow_classifier import FlowClassifier
+from slips_files.common.style import green
 from slips_files.core.helpers.whitelist.whitelist import Whitelist
 from .asn_info import ASN
 from slips_files.common.abstracts.iasync_module import IAsyncModule
@@ -71,7 +72,6 @@ class IPInfo(IAsyncModule):
         self.is_running_non_stop: bool = self.db.is_running_non_stop()
         self.valid_tlds = frozenset(whois.validTlds())
         self.domain_validity_cache = {}
-        self.detected_dns_ip = "-"
         self.is_running_in_ap_mode: bool = (
             True if self.args.access_point else False
         )
@@ -724,12 +724,13 @@ class IPInfo(IAsyncModule):
             return False
 
         if self.db.is_official_dns_server(flow.daddr):
-            self.detected_dns_ip = flow.daddr
             return True
 
-        self.detected_dns_ip = flow.daddr
         self.db.store_official_dns_server(flow.daddr)
-        self.print(f"Detected DNS server by traffic heuristic: {flow.daddr}")
+        self.print(
+            f"Detected DNS server by traffic heuristic: "
+            f"{green(flow.daddr)}"
+        )
         return True
 
     def wait_for_dbs(self):
