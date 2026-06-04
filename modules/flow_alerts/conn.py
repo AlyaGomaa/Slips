@@ -9,6 +9,10 @@ from typing import Tuple, List, Dict, Any
 import validators
 
 from modules.flow_alerts.dns import DNS
+from modules.flow_alerts.utils import (
+    should_ignore_different_localnet_for_official_dns_server,
+    should_ignore_dns_or_dhcpv6_flow,
+)
 from slips_files.common.abstracts.iflowalerts_analyzer import (
     IFlowalertsAnalyzer,
 )
@@ -805,8 +809,8 @@ class Conn(IFlowalertsAnalyzer):
         if not self.should_check_diff_localnet(flow):
             return
 
-        if self.should_ignore_different_localnet_for_official_dns_server(
-            flow, what_to_check
+        if should_ignore_different_localnet_for_official_dns_server(
+            self.db, flow, what_to_check
         ):
             return
 
@@ -862,7 +866,7 @@ class Conn(IFlowalertsAnalyzer):
             # skip DHCP conns to avoid having tons of this evidence
             return
 
-        if self.should_ignore_conn_to_private_ip_for_official_dns_server(flow):
+        if should_ignore_dns_or_dhcpv6_flow(self.db, flow):
             # skip DNS and DHCPv6 service traffic that matches the
             # detected local resolver behavior
             return

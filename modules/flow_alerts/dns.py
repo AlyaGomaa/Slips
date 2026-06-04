@@ -17,6 +17,9 @@ from multiprocessing import Queue
 from threading import Thread, Event
 
 
+from modules.flow_alerts.utils import (
+    should_ignore_different_localnet_for_official_dns_server,
+)
 from slips_files.common.abstracts.iflowalerts_analyzer import (
     IFlowalertsAnalyzer,
 )
@@ -663,8 +666,8 @@ class DNS(IFlowalertsAnalyzer):
             # the non dns flows are checked in conn.py
             return
 
-        if self.should_ignore_different_localnet_for_official_dns_server(
-            flow, what_to_check
+        if should_ignore_different_localnet_for_official_dns_server(
+            self.db, flow, what_to_check
         ):
             return
 
@@ -693,6 +696,7 @@ class DNS(IFlowalertsAnalyzer):
             own_local_network, strict=False
         )
         if own_local_network_obj.version != ip_obj.version:
+            # both should be ipv6 or ipv4
             return
 
         # if it's a private address, it should belong to our local network
