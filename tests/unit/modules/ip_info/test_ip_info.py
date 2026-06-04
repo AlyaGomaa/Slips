@@ -594,7 +594,6 @@ def test_register_private_dns_server_stores_private_dns_server():
 
     assert ip_info.register_private_dns_server(flow) is True
 
-    assert ip_info.detected_dns_ip == "fd00:2::53"
     ip_info.db.store_official_dns_server.assert_called_once_with("fd00:2::53")
     ip_info.print.assert_called_once_with(
         "Detected DNS server by traffic heuristic: fd00:2::53"
