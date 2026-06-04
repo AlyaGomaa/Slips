@@ -5,6 +5,7 @@ from typing import (
     Optional,
     Dict,
     List,
+    Any,
 )
 from uuid import uuid4, getnode
 import datetime
@@ -70,6 +71,7 @@ class IPInfo(IAsyncModule):
         self.is_running_non_stop: bool = self.db.is_running_non_stop()
         self.valid_tlds = frozenset(whois.validTlds())
         self.domain_validity_cache = {}
+        self.detected_dns_ip = "-"
         self.is_running_in_ap_mode: bool = (
             True if self.args.access_point else False
         )
@@ -699,6 +701,37 @@ class IPInfo(IAsyncModule):
         """
         await self.get_domain_info_async(domain)
 
+    @staticmethod
+    def _is_dns(flow: Any) -> bool:
+        return str(flow.dport) == "53" and flow.proto.lower() == "udp"
+
+    def register_private_dns_server(self, flow: Any) -> bool:
+        """
+        Store and announce a private DNS server seen in analyzed DNS traffic.
+
+        :return: True when the destination IP was accepted as a private DNS
+            server.
+        """
+        if not self._is_dns(flow):
+            return False
+
+        try:
+            daddr_obj = ipaddress.ip_address(flow.daddr)
+        except ValueError:
+            return False
+
+        if not utils.is_private_ip(daddr_obj):
+            return False
+
+        if self.db.is_official_dns_server(flow.daddr):
+            self.detected_dns_ip = flow.daddr
+            return True
+
+        self.detected_dns_ip = flow.daddr
+        self.db.store_official_dns_server(flow.daddr)
+        self.print(f"Detected DNS server by traffic heuristic: {flow.daddr}")
+        return True
+
     def wait_for_dbs(self):
         """
         wait for update manager to finish updating the mac db and open the
@@ -708,7 +741,8 @@ class IPInfo(IAsyncModule):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         # run open_dbs in the background so we don't have
-        # to wait for update manager to finish updating the mac db to start this module
+        # to wait for update manager to finish updating the mac db to start
+        # this module
         loop.run_until_complete(self.open_dbs())
 
     def set_evidence_malicious_jarm_hash(
@@ -825,6 +859,7 @@ class IPInfo(IAsyncModule):
         if msg := self.get_msg("new_dns"):
             msg = json.loads(msg["data"])
             flow = self.classifier.convert_to_flow_obj(msg["flow"])
+            self.register_private_dns_server(flow)
             if domain := flow.query:
                 self.create_task(self.handle_new_dns_async, domain)
 

@@ -1808,9 +1808,7 @@ class RedisDB(
         except ValueError:
             return False
 
-        return bool(
-            self.r.sismember(self.constants.OFFICIAL_DNS_SERVERS, ip)
-        )
+        return bool(self.r.sismember(self.constants.OFFICIAL_DNS_SERVERS, ip))
 
     def store_official_dns_server(self, server_addr: str):
         """
@@ -1818,9 +1816,6 @@ class RedisDB(
 
         Parameters:
         server_addr: DNS server IPv4 or IPv6 address.
-
-        Return:
-        None.
         """
         try:
             ipaddress.ip_address(server_addr)

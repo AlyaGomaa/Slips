@@ -56,7 +56,8 @@ class LocalnetHandler:
         self,
     ) -> Dict[str, str]:
         """
-        returns the local network of the given interface/s (-i or -ap)
+        returns the ipv4 and ipv6 local networks of the given interface/s
+        when slips is running with (-i or -ap)
         """
         local_nets = {}
         for interface in utils.get_all_interfaces(self.profiler.args):

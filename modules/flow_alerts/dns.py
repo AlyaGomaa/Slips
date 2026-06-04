@@ -591,44 +591,11 @@ class DNS(IFlowalertsAnalyzer):
     def _is_dns(self, flow) -> bool:
         return str(flow.dport) == "53" and flow.proto.lower() == "udp"
 
-    def register_private_dns_server(self, flow) -> bool:
-        """
-        Store and announce a private DNS server seen in analyzed DNS traffic.
-
-        Parameters:
-        flow: DNS flow-like object containing the resolver destination IP.
-
-        Return:
-        bool: True when the destination IP was accepted as a private DNS
-        server, False otherwise.
-        """
-        if not self._is_dns(flow):
-            return False
-
-        try:
-            daddr_obj = ipaddress.ip_address(flow.daddr)
-        except ValueError:
-            return False
-
-        if not utils.is_private_ip(daddr_obj):
-            return False
-
-        if self.db.is_official_dns_server(flow.daddr):
-            self.detected_dns_ip = flow.daddr
-            return True
-
-        self.detected_dns_ip = flow.daddr
-        self.db.store_official_dns_server(flow.daddr)
-        self.flowalerts.print(
-            f"Detected DNS server by traffic heuristic: {flow.daddr}"
-        )
-        return True
-
     def is_possible_dns_misconfiguration(self, ip_to_check, flow) -> bool:
         """
         to avoid fps that happen when a DNS is configured using a private
         IP that's outside of localnet,
-        we detect the dns ip as follows:
+        ip_info detects the dns ip as follows:
          - if a private DNS flow using port 53/udp is seen in dns.log.
         once detected we dont alert "conn to priv ip outside of localnetwork"
         to that ip+port+proto. this is not very common but it happens when
@@ -638,10 +605,10 @@ class DNS(IFlowalertsAnalyzer):
         local network" evidence is discarded.
         """
         if ip_to_check != flow.daddr:
-            # we only register the destination of the DNS flow as the server
+            # only the destination of the DNS flow can be the resolver here
             return False
 
-        return self.register_private_dns_server(flow)
+        return self.db.is_official_dns_server(ip_to_check)
 
     def _is_ok_to_connect_to_ip_outside_localnet(self, flow) -> bool:
         """
@@ -788,7 +755,6 @@ class DNS(IFlowalertsAnalyzer):
             self.check_dns_without_connection, profileid, twid, flow
         )
 
-        self.register_private_dns_server(flow)
         self.check_high_entropy_dns_answers(twid, flow)
         self.check_invalid_dns_answers(twid, flow)
         self.detect_dga(profileid, twid, flow)

@@ -128,14 +128,7 @@ class Utils(object):
                 if first_octet in network_range:
                     return network_range
         elif validators.ipv6(ip):
-            ip_obj = ipaddress.ip_address(ip)
-            if (
-                ip_obj.is_private
-                and not ip_obj.is_link_local
-                and not ip_obj.is_loopback
-                and not ip_obj.is_multicast
-                and not ip_obj.is_reserved
-            ):
+            if not self.are_detection_modules_interested_in_this_ip(ip):
                 return str(ipaddress.ip_network(f"{ip}/64", strict=False))
 
     def threat_level_to_string(self, threat_level: float) -> str:
