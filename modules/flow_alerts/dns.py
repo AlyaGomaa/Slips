@@ -6,7 +6,6 @@ import json
 import math
 import queue
 import time
-from datetime import datetime
 from typing import (
     List,
     Tuple,
@@ -18,7 +17,12 @@ from threading import Thread, Event
 
 
 from modules.flow_alerts.utils import (
-    should_ignore_different_localnet_for_official_dns_server,
+    get_ip_to_check,
+    is_dns_flow,
+    is_interface_timeout_reached as has_interface_timeout_reached,
+    is_ip_outside_local_network,
+    is_official_dns_server,
+    should_check_different_localnet,
 )
 from slips_files.common.abstracts.iflowalerts_analyzer import (
     IFlowalertsAnalyzer,
@@ -27,9 +31,6 @@ from slips_files.common.flow_classifier import FlowClassifier
 from slips_files.common.parsers.config_parser import ConfigParser
 from slips_files.common.slips_utils import utils
 from slips_files.core.structures.evidence import Direction
-
-
-SPECIAL_IPV4 = ("0.0.0.0", "255.255.255.255")
 
 
 class DNS(IFlowalertsAnalyzer):
@@ -253,22 +254,6 @@ class DNS(IFlowalertsAnalyzer):
             # this is not a DNS without resolution
             return True
 
-    def is_interface_timeout_reached(self):
-        """
-        To avoid false positives in case of an interface
-        don't alert ConnectionWithoutDNS until 30 minutes has passed after
-        starting slips because the dns may have happened before starting slips
-        """
-        if not self.is_running_non_stop:
-            # no timeout
-            return True
-
-        start_time = self.db.get_slips_start_time()
-        now = datetime.now()
-        diff = utils.get_time_diff(start_time, now, return_type="minutes")
-        # 30 minutes have passed?
-        return diff >= self.dns_without_conn_interface_wait_time
-
     def check_dns_without_connection_of_all_pending_flows(self):
         """should be called before shutting down, to check all the pending
         flows in the pending_dns_without_conn queue before stopping slips,
@@ -407,7 +392,14 @@ class DNS(IFlowalertsAnalyzer):
         if not self.should_detect_dns_without_conn(flow):
             return False
 
-        if not self.is_interface_timeout_reached():
+        if not has_interface_timeout_reached(
+            self.db,
+            self.is_running_non_stop,
+            self.dns_without_conn_interface_wait_time,
+        ):
+            # To avoid false positives in case of an interface
+            # don't alert ConnectionWithoutDNS until 30 minutes has passed after
+            # starting slips because the dns may have happened before starting slips
             return False
 
         if self.is_any_flow_answer_contacted(profileid, twid, flow):
@@ -591,9 +583,6 @@ class DNS(IFlowalertsAnalyzer):
         self.dns_arpa_queries.pop(profileid)
         return True
 
-    def _is_dns(self, flow) -> bool:
-        return str(flow.dport) == "53" and flow.proto.lower() == "udp"
-
     def is_possible_dns_misconfiguration(self, ip_to_check, flow) -> bool:
         """
         to avoid fps that happen when a DNS is configured using a private
@@ -613,39 +602,6 @@ class DNS(IFlowalertsAnalyzer):
 
         return self.db.is_official_dns_server(ip_to_check)
 
-    def _is_ok_to_connect_to_ip_outside_localnet(self, flow) -> bool:
-        """
-        returns true if it's ok to connect to the given IP even if it's
-        "outside the given local network"
-        """
-        saddr_obj = ipaddress.ip_address(flow.saddr)
-        daddr_obj = ipaddress.ip_address(flow.daddr)
-
-        if saddr_obj.version != daddr_obj.version:
-            return False
-
-        for ip, ip_obj in (
-            (flow.saddr, saddr_obj),
-            (flow.daddr, daddr_obj),
-        ):
-            if (
-                # if the ip is the dns server that slips detected,
-                # it's ok to connect to it
-                self.db.is_official_dns_server(ip)
-                or (ip_obj.version == 4 and ip in SPECIAL_IPV4)
-                or ip_obj.is_loopback
-                or ip_obj.is_multicast
-                or ip_obj.is_link_local
-            ):
-                return False
-
-        is_saddr_private = utils.is_private_ip(saddr_obj)
-        is_daddr_private = utils.is_private_ip(daddr_obj)
-
-        return (is_saddr_private and is_daddr_private) or (
-            not is_saddr_private and is_daddr_private
-        )
-
     def check_different_localnet_usage(
         self,
         twid,
@@ -662,19 +618,21 @@ class DNS(IFlowalertsAnalyzer):
 
         only checks connections to dst port 53/UDP. the rest are checked in conn.log
         """
-        if not self._is_dns(flow):
+        if not is_dns_flow(flow):
             # the non dns flows are checked in conn.py
             return
 
-        if should_ignore_different_localnet_for_official_dns_server(
-            self.db, flow, what_to_check
+        if is_official_dns_server(self.db, flow, what_to_check):
+            return
+
+        if should_check_different_localnet(
+            flow,
+            db=self.db,
+            ignore_official_dns_servers=True,
         ):
             return
 
-        if self._is_ok_to_connect_to_ip_outside_localnet(flow):
-            return
-
-        ip_to_check = flow.saddr if what_to_check == "srcip" else flow.daddr
+        ip_to_check = get_ip_to_check(flow, what_to_check)
 
         ip_obj = ipaddress.ip_address(ip_to_check)
         if not (utils.is_private_ip(ip_obj)):
@@ -685,22 +643,7 @@ class DNS(IFlowalertsAnalyzer):
             # outside of localnet
             return
 
-        own_local_network = self.db.get_local_network(flow.interface)
-        if not own_local_network:
-            # the current local network wasn't set in the db yet
-            # it's impossible to get here becaus ethe localnet is set before
-            # any msg is published in the new_flow channel
-            return
-
-        own_local_network_obj = ipaddress.ip_network(
-            own_local_network, strict=False
-        )
-        if own_local_network_obj.version != ip_obj.version:
-            # both should be ipv6 or ipv4
-            return
-
-        # if it's a private address, it should belong to our local network
-        if ip_obj in own_local_network_obj:
+        if not is_ip_outside_local_network(self.db, flow, ip_to_check):
             return
 
         self.set_evidence.different_localnet_usage(
