@@ -16,6 +16,7 @@ from slips_files.core.structures.evidence import (
     EvidenceType,
     IoCType,
     Direction,
+    ImmuneType,
 )
 
 ESTAB = "Established"
@@ -620,6 +621,7 @@ class SetEvidenceHelper:
             confidence=confidence,
             src_port=flow.sport,
             dst_port=flow.dport,
+            immune_type=ImmuneType.DAMP,
         )
 
         self.db.set_evidence(evidence)

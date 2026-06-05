@@ -116,6 +116,11 @@ class EvidenceType(Enum):
         return self.name
 
 
+class ImmuneType(Enum):
+    PAMP = auto()
+    DAMP = auto()
+
+
 class Direction(Enum):
     DST = auto()
     SRC = auto()
@@ -282,6 +287,7 @@ class Evidence:
     timestamp: str = field(
         metadata={"validate": lambda x: validate_timestamp(x)}
     )
+    immune_type: ImmuneType = field(default=None)
     interface: str = field(default="default")
     victim: Optional[Victim] = field(default=False)
     proto: Optional[Proto] = field(default=False)
