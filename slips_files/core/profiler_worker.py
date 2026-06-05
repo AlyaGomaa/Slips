@@ -394,6 +394,17 @@ class ProfilerWorker(IModule):
         # all of them are ipv6, return the first
         return gw_ips[0]
 
+    def gw_ip_belongs_to_localnet(self, gw_ip: str) -> bool:
+        """checks if the given detected gw_ip belongs to the detected local
+        network"""
+        for interface in utils.get_all_interfaces(self.args):
+            local_net = self.db.get_local_network(interface)
+            if not local_net:
+                continue
+            if gw_ip in ipaddress.ip_network(local_net):
+                return True
+        return False
+
     def get_gateway_info(self, flow):
         """
         Gets the IP and MAC of the gateway and stores them in the db
@@ -429,7 +440,7 @@ class ProfilerWorker(IModule):
         # we need the mac to be set to be able to find the ip using it
         if not self.is_gw_info_detected("ip", flow.interface) and gw_mac_found:
             gw_ip: Optional[str] = self.get_gw_ip_using_gw_mac(flow.dmac)
-            if gw_ip:
+            if gw_ip and self.gw_ip_belongs_to_localnet(gw_ip):
                 self.gw_ips[flow.interface] = gw_ip
                 self.db.set_default_gateway("IP", gw_ip, flow.interface)
                 self.print(
