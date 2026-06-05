@@ -249,7 +249,7 @@ class TimeWindow:
 class Method(Enum):
     """
     Describes how was the evidence generated. these values are IDMEFv2
-    https://www.ietf.org/id/draft-lehmann-idmefv2-03.html#section-5.3-4.20.1
+    https://datatracker.ietf.org/doc/draft-lehmann-idmefv2/#:~:text=Site%22%0A%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%5D%0A%20%20%20%7D%0A%0AAppendix%20C.-,JSON%20Validation%20Schema%20(Non%2Dnormative),-Listing%205%20contains
     """
 
     BIOMETRIC = "Biometric"
