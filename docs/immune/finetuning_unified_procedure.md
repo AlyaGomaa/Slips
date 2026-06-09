@@ -107,9 +107,19 @@ The three task types use distinct prompt formats:
 | **Task A** (Cause Analysis) | Structured root cause identification | Possible Causes × 3 categories + Conclusion |
 | **Task B** (Risk Assessment) | Calibrated risk evaluation | Risk Level + Justification + Business Impact + Likelihood + Priority |
 
-**Augmentation:** [`augment_unified_with_risk.py`](https://github.com/stratosphereips/Slips-tools/blob/main/unsloth-scripts/augment_unified_with_risk.py) then appends cause+risk SFT records for the 85 incidents that passed `filter_dataset_risk.py` but were excluded by the intersection requirement. These use the same DAG truncation logic (3500 tokens) and the same prompt formats as Tasks A and B above.
+**Augmentation with risk-only incidents:** The intersection requirement keeps only incidents with both summary and risk scores, which naturally shrinks the risk-task pool: the unified pipeline produces 675 cause+risk training records, compared to 1328 in the standalone risk pipeline. This halving of risk-specific signal causes task dilution — the model learns cause and risk analysis from fewer examples relative to the standalone model.
 
-**Final output:** `unified_train_dataset_augmented.json` — **2195 train records** (678 summary + 1518 cause + 1519 risk).
+To recover this signal without modifying the unified pipeline, [`augment_unified_with_risk.py`](https://github.com/stratosphereips/Slips-tools/blob/main/unsloth-scripts/augment_unified_with_risk.py) appends cause+risk SFT records from **risk-only incidents** — incidents present in `risk_filtered_train.json` (standalone risk train split) that were excluded from the unified pipeline because they lacked summary judge scores. Of the 151 incidents in `risk_dataset_v2` but not in the unified pool, 85 passed `filter_dataset_risk.py` quality filters and are appended.
+
+The augmentation uses the same prompt templates and DAG truncation (3500 tokens) as `select_best_responses_unified.py`. Each incident contributes two records (cause + risk), interleaved before appending.
+
+| Source | Incidents | Records |
+|--------|-----------|---------|
+| Unified filtered train (S+A+B) | 675 | 2025 |
+| Risk-only extras (A+B only) | 85 | 170 |
+| **Augmented total** | **760** | **2195** |
+
+**Final output:** `unified_train_dataset_augmented.json` — **2195 train records** (675 summary + 760 cause + 760 risk).
 
 ```bash
 cd alert_summary/
