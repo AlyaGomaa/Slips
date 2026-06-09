@@ -56,7 +56,7 @@ Fine-tuning uses [Unsloth](https://github.com/unslothai/unsloth) for its integra
 | LoRA targets | q/k/v/o projections, MLP gate/up/down |
 | Optimizer | AdamW 8-bit |
 | Precision | FP16 |
-| Hardware | NVIDIA TITAN V, 12 GB VRAM |
+| Hardware | GPU with 12 GB VRAM |
 
 Task-specific parameters (learning rate, epochs, sequence length, batch size) are configured in [`config.yaml`](https://github.com/stratosphereips/Slips-tools/blob/main/unsloth-scripts/config.yaml).
 

@@ -71,7 +71,7 @@ The risk gap is expected: the standalone risk model was trained exclusively on c
 
 3. **Risk quality gap is real but acceptable.** The 13.4pp win rate gap vs. the standalone risk model reflects the harder multi-task objective. The unified model still dominates both untuned baselines by a wide margin and produces cause analysis scores above GPT-4o.
 
-4. **Quantization does not hurt — it slightly helps.** Unlike the standalone risk model (where fp16 > all quantized variants), the unified model's quantized GGUF variants match or exceed the fp16 baseline on both tasks. This is because the fp16 baseline uses BnB NF4 4-bit quantization at inference (not true fp16 — the TITAN V cannot hold the full model in fp16 VRAM), so the comparison is NF4 vs. GGUF rather than full-precision vs. GGUF. See [Quantization and Deployment](finetuning_quantization.md) for the full quantization evaluation.
+4. **Quantization does not hurt — it slightly helps.** Unlike the standalone risk model (where fp16 > all quantized variants), the unified model's quantized GGUF variants match or exceed the fp16 baseline on both tasks. This is because the fp16 baseline uses BnB NF4 4-bit quantization at inference (not true fp16 — the evaluation GPU lacked sufficient VRAM for the full model), so the comparison is NF4 vs. GGUF rather than full-precision vs. GGUF. See [Quantization and Deployment](finetuning_quantization.md) for the full quantization evaluation.
 
 5. **q4_k_m is the recommended deployment variant.** At 986 MB, it matches q5_k_m and q8_0 on risk win rate (26.9% each) and is the smallest variant. For RPi5 deployment, q4_k_m is the best size-to-quality trade-off.
 

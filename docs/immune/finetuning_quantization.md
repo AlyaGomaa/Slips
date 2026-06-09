@@ -1,6 +1,6 @@
 ### Quantization and Deployment for Finetuned Models
 
-**Summary:** Finetuned models are converted to GGUF and published to Ollama in three quantization variants (q4_k_m, q5_k_m, q8_0). The GPU-served reference baseline uses BnB NF4 4-bit quantization at inference (not true fp16 — the TITAN V lacks VRAM for the full model), so all comparisons are NF4 vs. GGUF. Quality degrades with quantization relative to the NF4 baseline: ~2% loss at q8_0, ~12% at q5_k_m, ~9% at q4_k_m. q8_0 is the best quantized variant; q5_k_m offers the best quality/size trade-off for CPU/RPi deployment.
+**Summary:** Finetuned models are converted to GGUF and published to Ollama in three quantization variants (q4_k_m, q5_k_m, q8_0). The GPU-served reference baseline uses BnB NF4 4-bit quantization at inference (not true fp16 — the evaluation GPU lacked sufficient VRAM for the full model), so all comparisons are NF4 vs. GGUF. Quality degrades with quantization relative to the NF4 baseline: ~2% loss at q8_0, ~12% at q5_k_m, ~9% at q4_k_m. q8_0 is the best quantized variant; q5_k_m offers the best quality/size trade-off for CPU/RPi deployment.
 
 > **Evaluation basis:** performance numbers in this document were measured on the [finetuned summarization model](finetuning_results.md) (47 held-out incidents, judge: gpt-oss-120b). The GPU-served reference is `serve_model.py` with `--quant 4bit` (bitsandbytes NF4), not true fp16. The conversion and publication methodology applies to any finetuned model in this pipeline.
 
@@ -178,7 +178,7 @@ For complex incident analysis specifically, only the NF4/GPU variant is competit
 
 ## Unified Model Quantization
 
-> **Evaluation basis:** performance numbers below were measured on the [unified model v2](finetuning_unified_results.md) (47 summary incidents, judge: gpt-oss-120b; 67 risk incidents, judge: qwen3.5; date: 2026-06-09). The fp16 baseline uses BnB NF4 4-bit quantization at inference (the TITAN V cannot hold the full 1.5B model in true fp16 VRAM), so the comparison is NF4 vs. GGUF rather than full-precision vs. GGUF.
+> **Evaluation basis:** performance numbers below were measured on the [unified model v2](finetuning_unified_results.md) (47 summary incidents, judge: gpt-oss-120b; 67 risk incidents, judge: qwen3.5; date: 2026-06-09). The fp16 baseline uses BnB NF4 4-bit quantization at inference (the evaluation GPU lacked sufficient VRAM for the full model in true fp16), so the comparison is NF4 vs. GGUF rather than full-precision vs. GGUF.
 
 ### Summary Task Performance (47 incidents)
 
