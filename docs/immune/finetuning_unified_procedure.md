@@ -158,6 +158,14 @@ python3 train_qwen.py --config config_unified_4096_20gb_v2.yaml
 
 ---
 
+### Training History Notes
+
+**v1** used the base `unified_train_dataset.json` (2025 records, lora_r=64, 3 epochs). Evaluation showed that risk and cause analysis performance was significantly below the standalone risk model. The root cause was task dilution: at r=64, the adapter did not have enough capacity to learn all three tasks simultaneously, and the summary task — being the most frequent pattern — dominated training signal at the cost of risk quality.
+
+**v3** was an experiment that doubled all cause+risk records via 2× upsampling (`unified_train_dataset_augmented_2x_risk.json`). It backfired: the model overfit to the repeated pattern, producing a win rate drop of −6.4pp on summary and −13.5pp on risk compared to v2. v2, which reaches the same ~80% cause+risk proportion naturally from dataset sizes, is the better-calibrated training distribution.
+
+---
+
 ### Published Model
 
 The trained model is published on HuggingFace:
