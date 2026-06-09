@@ -75,4 +75,5 @@ The core training script is [`train_qwen.py`](https://github.com/stratosphereips
 | Task | Dataset | Procedure | Model |
 |---|---|---|---|
 | Incident Summarization | [summarization_dataset_v3](https://github.com/stratosphereips/Slips-tools/raw/refs/heads/main/alert_summary/datasets/summarization_dataset_v3.json.gz) | [Summarization Procedure](finetuning_summarization_procedure.md) | [stratosphere/qwen2.5-1.5b-slips-immune](https://huggingface.co/stratosphere/qwen2.5-1.5b-slips-immune) |
-| Decision Making | *(planned)* | *(planned)* | *(planned)* |
+| Risk Assessment & Cause Analysis | [risk_dataset_v2](https://github.com/stratosphereips/Slips-tools/raw/refs/heads/main/alert_summary/datasets/risk_dataset_v2.json.gz) | [Risk Procedure](finetuning_risk_procedure.md) | [stratosphere/qwen2.5-1.5b-slips-immune-risk](https://huggingface.co/stratosphere/qwen2.5-1.5b-slips-immune-risk) |
+| Unified (Summary + Cause + Risk) | [unified_train_dataset_augmented](https://github.com/stratosphereips/Slips-tools/blob/main/unsloth-scripts/unified_train_dataset_augmented.json) | [Unified Procedure](finetuning_unified_procedure.md) | [stratosphere/qwen2.5-1.5b-slips-immune-unified](https://huggingface.co/stratosphere/qwen2.5-1.5b-slips-immune-unified) |
