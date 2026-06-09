@@ -37,6 +37,8 @@ The trade-off is a harder training objective: one adapter must learn three disti
 
 The unified pipeline requires every incident to have both summary and risk judge scores — a stricter requirement than either standalone pipeline. Only the 802 incidents scored on both tasks enter the pipeline. The final training set contains **2195 SFT records** across all three task types.
 
+The final SFT dataset is published on HuggingFace: **[stratosphere/immune-unified-sft-dataset](https://huggingface.co/datasets/stratosphere/immune-unified-sft-dataset)**
+
 For how the source datasets were generated, see [Summarization Dataset Report](DATASET_REPORT.md) and [Risk Analysis Dataset Report](DATASET_RISK_REPORT.md).
 
 ---
