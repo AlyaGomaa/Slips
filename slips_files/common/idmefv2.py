@@ -53,7 +53,7 @@ class IDMEFv2:
         self.model: str = utils.get_slips_version()
 
         # the used idmef version
-        self.version = "2.0.3"
+        self.version = "2.D.V03"
 
     def _get_analyzer(self, interface):
         return {
@@ -75,7 +75,7 @@ class IDMEFv2:
     def print(self, *args, **kwargs):
         return self.printer.print(*args, **kwargs)
 
-    def convert_threat_level_to_idmefv2_severity(
+    def convert_threat_level_to_idmefv2_priority(
         self, threat_lvl: ThreatLevel
     ) -> str:
         """
@@ -196,7 +196,7 @@ class IDMEFv2:
             attacker, attacker_type = self.extract_role_type(
                 evidence, role="attacker"
             )
-            severity: str = self.convert_threat_level_to_idmefv2_severity(
+            priority: str = self.convert_threat_level_to_idmefv2_priority(
                 evidence.threat_level
             )
 
@@ -208,7 +208,7 @@ class IDMEFv2:
                     "Status": IDMEFv2Status.EVIDENCE.value,
                     # that is a uuid4()
                     "ID": evidence.id,
-                    "Severity": severity,
+                    "Priority": priority,
                     # Timestamp indicating the deduced start of the event
                     "StartTime": iso_ts,
                     # Timestamp indicating when the message was created
