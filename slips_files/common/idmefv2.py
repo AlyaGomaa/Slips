@@ -26,7 +26,7 @@ class IDMEFv2Status(Enum):
     ALERT = "Incident"
 
 
-class IDMEFv2Severity(Enum):
+class IDMEFv2PriorityEnum(Enum):
     UNKNOWN = "Unknown"
     INFO = "Info"
     LOW = "Low"
@@ -83,11 +83,12 @@ class IDMEFv2:
         All threat levels have a corresponding sevirity except
         for the Critical threat level, so we map it to High severity
         """
-        if hasattr(IDMEFv2Severity, threat_lvl.name):
-            return getattr(IDMEFv2Severity, threat_lvl.name).value
+        if hasattr(IDMEFv2PriorityEnum, threat_lvl.name):
+            return getattr(IDMEFv2PriorityEnum, threat_lvl.name).value
 
         if threat_lvl.name == "CRITICAL":
-            return IDMEFv2Severity.HIGH.value
+            return IDMEFv2PriorityEnum.HIGH.value
+        return IDMEFv2PriorityEnum.UNKNOWN.value
 
     def extract_role_type(
         self, evidence: Evidence, role=None
