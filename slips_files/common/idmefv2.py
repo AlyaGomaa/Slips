@@ -112,6 +112,7 @@ class IDMEFv2:
             IoCType.DOMAIN.name: "Hostname",
             IoCType.URL.name: "URL",
         }
+        ioc_type = ioc_type.name if isinstance(ioc_type, IoCType) else ioc_type
         # todo make sure that its a fq domain
         return ioc, type_[ioc_type]
 
