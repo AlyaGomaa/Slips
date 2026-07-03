@@ -4,7 +4,7 @@
 * Reduce false positives for DNS, DHCP, multicast, and broadcast traffic.
 * Improve IPv6 and Zeek input handling for local-network checks and profiler processing.
 * Add support the latest version of IDMEFv2.
-* Update dependencies and Docker build files.
+* Update Slips dependencies and golang version used in Docker files.
 
 1.1.21 (Jun 1st, 2026)
 
