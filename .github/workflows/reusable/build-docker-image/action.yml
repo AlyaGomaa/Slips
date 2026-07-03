@@ -22,6 +22,21 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Checkout repository with submodules
+      uses: actions/checkout@v7
+      with:
+        ref: ${{ github.ref }}
+        fetch-depth: 0
+        submodules: recursive
+
+    - name: Validate Docker build context
+      shell: bash
+      run: |
+        test -f iris/go.mod
+        test -f iris/go.sum
+        test -f p2p4slips/go.mod
+        test -f p2p4slips/go.sum
+
     - name: Build Docker image
       shell: bash
       env:
