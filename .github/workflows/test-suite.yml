@@ -1,4 +1,6 @@
 # GitHub only runs this when another workflow calls it, not automatically.
+# Reusable workflows must live directly under .github/workflows/, so this file
+# stays here even though the supporting reusable actions live under reusable/.
 # this is how you call it from another workflow
 #jobs:
 #  my-tests:
@@ -74,6 +76,16 @@ on:
         required: false
         default: "slips-test"
         type: string
+      docker_image_artifact_name:
+        description: "Artifact name for a prebuilt Docker image tarball"
+        required: false
+        default: ""
+        type: string
+      docker_image_tag:
+        description: "Docker image tag for a prebuilt Docker image"
+        required: false
+        default: ""
+        type: string
 
 jobs:
   list-tests:
@@ -90,10 +102,38 @@ jobs:
           test_dir: ${{ inputs.test_dir }}
           output_prefix: ${{ inputs.output_prefix }}
 
+  build-docker-image:
+    name: Build Docker image
+    if: ${{ inputs.build_dockerfile }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    outputs:
+      artifact_name: ${{ steps.image.outputs.artifact_name }}
+      image_tag: ${{ steps.image.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Prepare Docker image metadata
+        id: image
+        run: |
+          image_tag="${{ inputs.image_tag_prefix }}:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          artifact_name="${{ inputs.image_tag_prefix }}-image-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker image
+        uses: ./.github/workflows/reusable/build-docker-image
+        with:
+          artifact_name: ${{ steps.image.outputs.artifact_name }}
+          image_tag: ${{ steps.image.outputs.image_tag }}
+
   dependency-image-tests:
     # runs slips tests inside a pre-built slips dependency docker image at stratosphereips/slips_dependencies
     name: ${{ inputs.test_suite_name }}
-    if: ${{ !inputs.build_dockerfile }}
+    if: ${{ !inputs.build_dockerfile && inputs.docker_image_artifact_name == '' && inputs.docker_image_tag == '' }}
     needs: list-tests
     runs-on: ubuntu-22.04
     timeout-minutes: ${{ inputs.timeout_minutes }}
@@ -133,6 +173,53 @@ jobs:
     # runs slips tests inside a newly created docker image from docker/Dockerfile
     name: ${{ inputs.test_suite_name }}
     if: ${{ inputs.build_dockerfile }}
+    needs:
+      - list-tests
+      - build-docker-image
+    runs-on: ubuntu-22.04
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+
+    env:
+      TF_CPP_MIN_LOG_LEVEL: 3
+      TF_ENABLE_ONEDNN_OPTS: 0
+
+    strategy:
+      fail-fast: false
+      matrix:
+        test_file: ${{ fromJson(needs.list-tests.outputs.test_files) }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Download Docker Image
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.build-docker-image.outputs.artifact_name }}
+
+      - name: Load Docker Image
+        run: docker load --input docker-image.tar
+
+      - name: Run ${{ inputs.test_suite_name }} for ${{ matrix.test_file }}
+        uses: ./.github/workflows/reusable/run-test-file
+        with:
+          execution_mode: docker
+          test_file: ${{ matrix.test_file }}
+          test_path_prefix: ${{ inputs.test_path_prefix }}
+          pytest_workers: ${{ inputs.pytest_workers }}
+          output_path: ${{ inputs.output_path }}
+          artifact_name: ${{ inputs.artifact_name_prefix && format('{0}{1}', inputs.artifact_name_prefix, strategy.job-index) || '' }}
+          artifact_name_suffix: ${{ inputs.artifact_name_suffix }}
+          image_tag: ${{ needs.build-docker-image.outputs.image_tag }}
+          container_prefix: ${{ inputs.container_prefix }}
+          job_index: ${{ strategy.job-index }}
+
+  prebuilt-docker-image-tests:
+    # runs slips tests inside a Docker image built by the caller and passed as an artifact
+    name: ${{ inputs.test_suite_name }}
+    if: ${{ !inputs.build_dockerfile && inputs.docker_image_artifact_name != '' && inputs.docker_image_tag != '' }}
     needs: list-tests
     runs-on: ubuntu-22.04
     timeout-minutes: ${{ inputs.timeout_minutes }}
@@ -152,12 +239,13 @@ jobs:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
-      - name: Build Docker Image
-        id: build-image
-        run: |
-          image_tag="${{ inputs.image_tag_prefix }}:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${{ strategy.job-index }}"
-          docker build -t "$image_tag" -f docker/Dockerfile .
-          echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
+      - name: Download Docker Image
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ inputs.docker_image_artifact_name }}
+
+      - name: Load Docker Image
+        run: docker load --input docker-image.tar
 
       - name: Run ${{ inputs.test_suite_name }} for ${{ matrix.test_file }}
         uses: ./.github/workflows/reusable/run-test-file
@@ -169,6 +257,6 @@ jobs:
           output_path: ${{ inputs.output_path }}
           artifact_name: ${{ inputs.artifact_name_prefix && format('{0}{1}', inputs.artifact_name_prefix, strategy.job-index) || '' }}
           artifact_name_suffix: ${{ inputs.artifact_name_suffix }}
-          image_tag: ${{ steps.build-image.outputs.image_tag }}
+          image_tag: ${{ inputs.docker_image_tag }}
           container_prefix: ${{ inputs.container_prefix }}
           job_index: ${{ strategy.job-index }}
