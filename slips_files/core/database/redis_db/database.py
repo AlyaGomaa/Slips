@@ -31,6 +31,7 @@ from slips_files.core.database.redis_db.cleanup_mixin import CleanupMixin
 
 import os
 import redis
+import shlex
 import time
 import json
 import subprocess
@@ -62,6 +63,7 @@ class RedisDB(
     ScanDetectionsHandler,
     Publisher,
 ):
+    name = "redis_db"
     # this db is a singelton per port. meaning no 2 instances
     # should be created for the same port at the same time
     _obj = None
@@ -467,6 +469,10 @@ class RedisDB(
             "--daemonize",
             "yes",
         ]
+        cls.printer.print(
+            f"Redis command: {shlex.join(cmd)}",
+            log_to_logfiles_only=True,
+        )
         process = subprocess.Popen(
             cmd,
             cwd=os.getcwd(),
@@ -1792,6 +1798,25 @@ class RedisDB(
         max = 20
         # delete anything older than the most recent 20 servers
         self.r.ltrim(self.constants.DHCP_SERVERS, 0, max - 1)
+
+    def is_official_dns_server(self, ip: str) -> bool:
+        """
+        Check whether the given IP is one of the detected DNS servers.
+        """
+        try:
+            ipaddress.ip_address(ip)
+        except ValueError:
+            return False
+
+        return bool(self.r.sismember(self.constants.OFFICIAL_DNS_SERVERS, ip))
+
+    def store_official_dns_server(self, server_addr: str):
+        try:
+            ipaddress.ip_address(server_addr)
+        except ValueError:
+            return
+
+        self.r.sadd(self.constants.OFFICIAL_DNS_SERVERS, server_addr)
 
     def _get_redis_dump_path_from_redis_config(self) -> str:
         """
